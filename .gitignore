@@ -19,6 +19,11 @@ target/
 *.pem
 *.key
 
+# Local Agent Directives
+GEMINI.md
+CLAUDE.md
+AGENTS.md
+
 # IDE / OS
 .DS_Store
 .vscode/
