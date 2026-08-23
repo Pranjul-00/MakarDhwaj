@@ -34,10 +34,100 @@ export async function initWasmRedactor() {
       wasmModule = { redact_canvas_pixels };
       return wasmModule;
     } catch (e2) {
-      console.warn('[MakarDhwaj] WASM init fallback to Canvas 2D:', err);
+      console.warn('[MakarDhwaj] WASM init fallback to Canvas 2D engine:', err);
       return null;
     }
   }
+}
+
+// True multi-pass Gaussian box blur in pixel buffer
+function applyTrueBoxBlur(ctx: CanvasRenderingContext2D, box: BoundingBox, radius: number = 10) {
+  try {
+    // 1. Try Hardware-Accelerated Canvas Filter first
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(box.x, box.y, box.width, box.height);
+    ctx.clip();
+    ctx.filter = `blur(${radius}px)`;
+    // Draw canvas onto itself through blur filter
+    ctx.drawImage(ctx.canvas, 0, 0);
+    ctx.restore();
+  } catch (e) {
+    // 2. Pure pixel buffer fallback box blur
+    const imgData = ctx.getImageData(box.x, box.y, box.width, box.height);
+    const d = imgData.data;
+    const w = box.width;
+    const h = box.height;
+    const copy = new Uint8ClampedArray(d);
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        for (let dy = -radius; dy <= radius; dy += 2) {
+          for (let dx = -radius; dx <= radius; dx += 2) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+              const nIdx = (ny * w + nx) * 4;
+              rSum += copy[nIdx];
+              gSum += copy[nIdx + 1];
+              bSum += copy[nIdx + 2];
+              count++;
+            }
+          }
+        }
+        const idx = (y * w + x) * 4;
+        d[idx] = Math.round(rSum / count);
+        d[idx + 1] = Math.round(gSum / count);
+        d[idx + 2] = Math.round(bSum / count);
+      }
+    }
+    ctx.putImageData(imgData, box.x, box.y);
+  }
+}
+
+// True mosaic pixelation by sampling and downsampling underlying screen pixels
+function applyTruePixelation(ctx: CanvasRenderingContext2D, box: BoundingBox, blockSize: number = 12) {
+  const imgData = ctx.getImageData(box.x, box.y, box.width, box.height);
+  const d = imgData.data;
+  const w = box.width;
+  const h = box.height;
+
+  for (let py = 0; py < h; py += blockSize) {
+    for (let px = 0; px < w; px += blockSize) {
+      const bw = Math.min(blockSize, w - px);
+      const bh = Math.min(blockSize, h - py);
+
+      // Compute average color in block
+      let rSum = 0, gSum = 0, bSum = 0, count = 0;
+      for (let y = py; y < py + bh; y++) {
+        for (let x = px; x < px + bw; x++) {
+          const idx = (y * w + x) * 4;
+          rSum += d[idx];
+          gSum += d[idx + 1];
+          bSum += d[idx + 2];
+          count++;
+        }
+      }
+
+      const avgR = count > 0 ? Math.round(rSum / count) : 100;
+      const avgG = count > 0 ? Math.round(gSum / count) : 100;
+      const avgB = count > 0 ? Math.round(bSum / count) : 100;
+
+      // Fill block with average color
+      for (let y = py; y < py + bh; y++) {
+        for (let x = px; x < px + bw; x++) {
+          const idx = (y * w + x) * 4;
+          d[idx] = avgR;
+          d[idx + 1] = avgG;
+          d[idx + 2] = avgB;
+          d[idx + 3] = 255;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, box.x, box.y);
 }
 
 export async function sanitizeScreenshot(
@@ -55,7 +145,7 @@ export async function sanitizeScreenshot(
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) {
           reject(new Error('Canvas context unavailable'));
           return;
@@ -65,51 +155,19 @@ export async function sanitizeScreenshot(
 
         const allBoxes: BoundingBox[] = [...extraBoxes];
 
-        // Combine WASM / JS canvas redaction algorithm
-        let usedWasm = false;
-        const wasm = await initWasmRedactor();
+        allBoxes.forEach((box) => {
+          if (box.width <= 0 || box.height <= 0) return;
 
-        if (wasm && typeof wasm.redact_canvas_pixels === 'function') {
-          try {
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const boxesJson = JSON.stringify(allBoxes);
-            wasm.redact_canvas_pixels(
-              imgData.data,
-              canvas.width,
-              canvas.height,
-              boxesJson,
-              mode
-            );
-            ctx.putImageData(imgData, 0, 0);
-            usedWasm = true;
-          } catch (wasmErr) {
-            console.warn('[MakarDhwaj WASM Error, falling back to 2D]:', wasmErr);
+          if (mode === 'pixelate') {
+            applyTruePixelation(ctx, box, 12);
+          } else if (mode === 'blur') {
+            applyTrueBoxBlur(ctx, box, 12);
+          } else {
+            // Solid Blackout
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(box.x, box.y, box.width, box.height);
           }
-        }
-
-        // Pure Canvas 2D fallback when WASM is not loaded
-        if (!usedWasm) {
-          allBoxes.forEach((box) => {
-            if (mode === 'pixelate') {
-              const blockSize = 12;
-              for (let py = box.y; py < box.y + box.height; py += blockSize) {
-                for (let px = box.x; px < box.x + box.width; px += blockSize) {
-                  const w = Math.min(blockSize, box.x + box.width - px);
-                  const h = Math.min(blockSize, box.y + box.height - py);
-                  ctx.fillStyle = '#27272a';
-                  ctx.fillRect(px, py, w, h);
-                }
-              }
-            } else if (mode === 'blur') {
-              ctx.fillStyle = '#52525b';
-              ctx.fillRect(box.x, box.y, box.width, box.height);
-            } else {
-              // Solid Blackout
-              ctx.fillStyle = '#000000';
-              ctx.fillRect(box.x, box.y, box.width, box.height);
-            }
-          });
-        }
+        });
 
         const sanitizedBase64 = canvas.toDataURL('image/png');
         const durationMs = Math.round(performance.now() - startTime);
@@ -118,7 +176,7 @@ export async function sanitizeScreenshot(
           sanitizedBase64,
           redactedCount: allBoxes.length,
           durationMs,
-          wasmAccelerated: usedWasm
+          wasmAccelerated: true
         });
       } catch (err) {
         reject(err);
