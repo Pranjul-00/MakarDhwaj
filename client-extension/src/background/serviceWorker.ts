@@ -2,7 +2,7 @@ import { sanitizeScreenshot, BoundingBox } from '../services/privacyFilter';
 
 export interface AgentLog {
   timestamp: string;
-  stage: 'capture' | 'redact' | 'server' | 'execution' | 'error';
+  stage: 'capture' | 'redact' | 'server' | 'execution' | 'error' | 'success';
   message: string;
   details?: any;
 }
@@ -26,7 +26,7 @@ export interface AgentSessionState {
 
 let sessionState: AgentSessionState = {
   isProcessing: false,
-  userGoal: 'Click the primary action button on screen',
+  userGoal: 'Click Submit Privacy Form',
   redactionMode: 'blackout',
   serverUrl: 'http://localhost:8080/api/v1/analyze',
   logs: [],
@@ -47,7 +47,7 @@ function addLog(stage: AgentLog['stage'], message: string, details?: any) {
     details
   };
   sessionState.logs.unshift(log);
-  if (sessionState.logs.length > 50) sessionState.logs.pop();
+  if (sessionState.logs.length > 100) sessionState.logs.pop();
   chrome.runtime.sendMessage({ action: 'STATE_UPDATED', state: sessionState }).catch(() => {});
 }
 
@@ -55,26 +55,41 @@ export async function processVisionAgentLoop() {
   if (sessionState.isProcessing) return;
   sessionState.isProcessing = true;
   const loopStartTime = performance.now();
-  addLog('capture', `Starting perception loop for goal: "${sessionState.userGoal}"`);
+  addLog('capture', `Perception loop triggered for goal: "${sessionState.userGoal}"`);
 
   try {
     // 1. Get active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.id) {
-      throw new Error('No active browser tab found');
+      throw new Error('No active browser tab found. Please switch to a web page.');
     }
 
-    // 2. Capture viewport screenshot
-    addLog('capture', 'Capturing viewport screenshot...');
-    const rawDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+    addLog('capture', `Active tab detected: ID=${tab.id} | URL=${tab.url?.substring(0, 60)}...`);
+
+    // 2. Capture viewport screenshot (with fallback for Firefox/Zen and Chromium)
+    let rawDataUrl: string = '';
+    try {
+      if (tab.windowId) {
+        rawDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+      } else {
+        rawDataUrl = await (chrome.tabs as any).captureVisibleTab({ format: 'png' });
+      }
+    } catch (capErr: any) {
+      addLog('capture', 'Standard window capture fallback invoked...');
+      rawDataUrl = await (chrome.tabs as any).captureVisibleTab({ format: 'png' });
+    }
+
+    if (!rawDataUrl) {
+      throw new Error('Failed to capture active viewport screenshot.');
+    }
 
     // 3. Extract DOM structural metadata from content script
-    addLog('capture', 'Extracting structural DOM metadata and input locations...');
+    addLog('capture', 'Extracting interactive DOM tree and locating PII bounding coordinates...');
     let domData: any = { elements: [], piiBoundingBoxes: [] };
     try {
       domData = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_DOM' });
     } catch (e) {
-      addLog('capture', 'Content script injection fallback required...');
+      addLog('capture', 'Injecting content extractor script dynamically...');
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['src/content/extractor.js']
@@ -82,8 +97,15 @@ export async function processVisionAgentLoop() {
       domData = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_DOM' });
     }
 
-    // 4. Run local privacy filter (WASM / WebGPU accelerated)
-    addLog('redact', `Applying ${sessionState.redactionMode} filter on detected PII elements...`);
+    const interactiveCount = (domData.elements || []).length;
+    const piiDetectedCount = (domData.piiBoundingBoxes || []).length;
+    addLog('capture', `DOM Extracted: ${interactiveCount} interactive nodes, ${piiDetectedCount} PII fields identified`, {
+      viewport: domData.viewport,
+      piiBoxes: domData.piiBoundingBoxes
+    });
+
+    // 4. Run local privacy filter (Rust WASM engine)
+    addLog('redact', `Executing ${sessionState.redactionMode} mask on ${piiDetectedCount} sensitive regions...`);
     const piiBoxes: BoundingBox[] = (domData.piiBoundingBoxes || []).map((b: any) => ({
       x: b.x,
       y: b.y,
@@ -98,10 +120,13 @@ export async function processVisionAgentLoop() {
     sessionState.stats.wasmUsed = redactRes.wasmAccelerated;
     sessionState.stats.redactTimeMs = redactRes.durationMs;
 
-    addLog('redact', `Sanitized ${redactRes.redactedCount} regions in ${redactRes.durationMs}ms (WASM: ${redactRes.wasmAccelerated})`);
+    addLog('redact', `Privacy filter finished in ${redactRes.durationMs}ms [WASM: ${redactRes.wasmAccelerated ? 'Active' : 'Fallback'}]`, {
+      redactedCount: redactRes.redactedCount,
+      durationMs: redactRes.durationMs
+    });
 
     // 5. Send sanitized image + DOM tree to Go backend
-    addLog('server', `Sending payload to backend reasoning engine (${sessionState.serverUrl})...`);
+    addLog('server', `Transmitting sanitized payload to backend (${sessionState.serverUrl})...`);
     const serverStartTime = performance.now();
 
     const payload = {
@@ -118,30 +143,35 @@ export async function processVisionAgentLoop() {
     });
 
     if (!res.ok) {
-      throw new Error(`Server returned HTTP ${res.status}: ${await res.text()}`);
+      throw new Error(`Backend returned HTTP ${res.status}: ${await res.text()}`);
     }
 
     const actionResult = await res.json();
     sessionState.stats.serverTimeMs = Math.round(performance.now() - serverStartTime);
     sessionState.lastAction = actionResult;
 
-    addLog('server', `VLM suggested action: ${actionResult.action} (Confidence: ${actionResult.confidence || '100%'})`, actionResult);
+    addLog('server', `VLM Decision: action=${actionResult.action} on ${actionResult.selector || 'coordinates'} (${sessionState.stats.serverTimeMs}ms)`, actionResult);
 
     // 6. Execute action in active tab
     if (actionResult.action && actionResult.action !== 'none') {
-      addLog('execution', `Dispatching DOM event for ${actionResult.action} on tab...`);
+      addLog('execution', `Dispatching ${actionResult.action.toUpperCase()} event on target: ${actionResult.selector}...`);
       const execRes = await chrome.tabs.sendMessage(tab.id, {
         action: 'EXECUTE_ACTION',
         payload: actionResult
       });
-      addLog('execution', `Execution complete: ${JSON.stringify(execRes)}`);
+
+      if (execRes?.success) {
+        addLog('success', `DOM Action executed successfully on <${execRes.tagName || 'ELEMENT'}> "${execRes.text || ''}"`, execRes);
+      } else {
+        addLog('error', `DOM execution failed: ${execRes?.error || 'Unknown element'}`, execRes);
+      }
     } else {
-      addLog('execution', 'Goal completed or no action required.');
+      addLog('success', 'Goal already satisfied or scroll action completed.');
     }
 
     sessionState.stats.totalTimeMs = Math.round(performance.now() - loopStartTime);
   } catch (err: any) {
-    addLog('error', `Agent loop failed: ${err.message}`);
+    addLog('error', `Perception loop failed: ${err.message}`, { stack: err.stack });
   } finally {
     sessionState.isProcessing = false;
     chrome.runtime.sendMessage({ action: 'STATE_UPDATED', state: sessionState }).catch(() => {});
@@ -160,6 +190,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ success: true });
   } else if (message.action === 'START_AGENT') {
     processVisionAgentLoop();
+    sendResponse({ success: true });
+  } else if (message.action === 'CLEAR_LOGS') {
+    sessionState.logs = [];
     sendResponse({ success: true });
   }
   return true;
