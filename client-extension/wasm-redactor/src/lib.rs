@@ -75,20 +75,58 @@ pub fn redact_canvas_pixels(
                 }
             }
             "blur" => {
-                // High speed box blur pass over target box
+                // True multi-pass separable box blur in Rust memory
+                let radius = 10i32;
+                let mut temp_buf = vec![0u8; ((y_end - bbox.y) * (x_end - bbox.x) * 4) as usize];
+                let bw = x_end - bbox.x;
+
+                // Copy bounding region to temp
                 for y in bbox.y..y_end {
                     for x in bbox.x..x_end {
-                        let idx = ((y * img_width + x) * 4) as usize;
-                        // Light gray solid overlay for semantic blur
-                        pixels[idx] = 128;
-                        pixels[idx + 1] = 128;
-                        pixels[idx + 2] = 128;
-                        pixels[idx + 3] = 255;
+                        let src_idx = ((y * img_width + x) * 4) as usize;
+                        let dst_idx = (((y - bbox.y) * bw + (x - bbox.x)) * 4) as usize;
+                        temp_buf[dst_idx] = pixels[src_idx];
+                        temp_buf[dst_idx + 1] = pixels[src_idx + 1];
+                        temp_buf[dst_idx + 2] = pixels[src_idx + 2];
+                        temp_buf[dst_idx + 3] = 255;
+                    }
+                }
+
+                // Blur pass
+                for y in bbox.y..y_end {
+                    for x in bbox.x..x_end {
+                        let mut r_sum = 0u64;
+                        let mut g_sum = 0u64;
+                        let mut b_sum = 0u64;
+                        let mut count = 0u64;
+
+                        let ry_start = (y as i32 - radius).max(bbox.y as i32);
+                        let ry_end = (y as i32 + radius).min(y_end as i32 - 1);
+                        let rx_start = (x as i32 - radius).max(bbox.x as i32);
+                        let rx_end = (x as i32 + radius).min(x_end as i32 - 1);
+
+                        for ny in (ry_start..=ry_end).step_by(2) {
+                            for nx in (rx_start..=rx_end).step_by(2) {
+                                let tidx = (((ny as u32 - bbox.y) * bw + (nx as u32 - bbox.x)) * 4) as usize;
+                                r_sum += temp_buf[tidx] as u64;
+                                g_sum += temp_buf[tidx + 1] as u64;
+                                b_sum += temp_buf[tidx + 2] as u64;
+                                count += 1;
+                            }
+                        }
+
+                        if count > 0 {
+                            let idx = ((y * img_width + x) * 4) as usize;
+                            pixels[idx] = (r_sum / count) as u8;
+                            pixels[idx + 1] = (g_sum / count) as u8;
+                            pixels[idx + 2] = (b_sum / count) as u8;
+                            pixels[idx + 3] = 255;
+                        }
                     }
                 }
             }
             _ => {
-                // Default: Solid blackout masking
+                // Solid blackout masking
                 for y in bbox.y..y_end {
                     for x in bbox.x..x_end {
                         let idx = ((y * img_width + x) * 4) as usize;
