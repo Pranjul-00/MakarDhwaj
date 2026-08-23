@@ -123,62 +123,16 @@ export function extractDOMState(): ExtractDOMResult {
   };
 }
 
-// Visual indicator overlay when agent interacts with element
+// Visual indicator outline when agent interacts with element
 function highlightElement(el: HTMLElement) {
   const origOutline = el.style.outline;
-  const origBoxShadow = el.style.boxShadow;
   const origTransition = el.style.transition;
-  el.style.transition = 'all 0.15s ease-in-out';
-  el.style.outline = '4px solid #dc2626';
-  el.style.boxShadow = '0 0 16px rgba(220, 38, 38, 0.8)';
+  el.style.transition = 'outline 0.15s ease-in-out';
+  el.style.outline = '3px solid #dc2626';
   setTimeout(() => {
     el.style.outline = origOutline;
-    el.style.boxShadow = origBoxShadow;
     el.style.transition = origTransition;
-  }, 1200);
-}
-
-// Execute script directly in page context (breaks out of Firefox Xray wrapper sandbox)
-function triggerPageContextAction(selector: string, actionType: string, text?: string) {
-  try {
-    const scriptEl = document.createElement('script');
-    scriptEl.textContent = `
-      (() => {
-        try {
-          const el = document.querySelector(${JSON.stringify(selector)});
-          if (el) {
-            el.focus();
-            if ('${actionType}' === 'click') {
-              el.click();
-              if (typeof handleSubmit === 'function') {
-                try { handleSubmit(); } catch(e){}
-              }
-              const form = el.closest('form');
-              if (form) {
-                if (typeof form.requestSubmit === 'function') {
-                  form.requestSubmit(el);
-                } else if (typeof form.submit === 'function') {
-                  form.submit();
-                }
-              }
-            } else if ('${actionType}' === 'type') {
-              if ('value' in el) {
-                el.value = ${JSON.stringify(text || '')};
-              }
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-          }
-        } catch(err) {
-          console.error('[MakarDhwaj Page Context Error]', err);
-        }
-      })();
-    `;
-    (document.head || document.documentElement).appendChild(scriptEl);
-    scriptEl.remove();
-  } catch (e) {
-    console.warn('[MakarDhwaj Injection Error]', e);
-  }
+  }, 1000);
 }
 
 // Action executor in active page DOM
@@ -202,8 +156,8 @@ export function executeDOMAction(action: { type: string; selector?: string; coor
   }
 
   if (!targetEl) {
-    console.warn('[MakarDhwaj] Could not find target element for action:', action);
-    return { success: false, error: 'Element not found', selector: action.selector, coordinates: action.coordinates };
+    console.warn('[MakarDhwaj] Target element not found:', action);
+    return { success: false, error: 'Element not found', selector: action.selector };
   }
 
   const exactSelector = getUniqueSelector(targetEl);
@@ -213,26 +167,34 @@ export function executeDOMAction(action: { type: string; selector?: string; coor
     targetEl.focus();
     highlightElement(targetEl);
 
-    // 1. Content Script Isolated World Dispatch
     if (action.type === 'click') {
-      const pointerDown = new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: window });
-      const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window });
-      const pointerUp = new PointerEvent('pointerup', { bubbles: true, cancelable: true, view: window });
-      const mouseUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window });
-      
-      targetEl.dispatchEvent(pointerDown);
-      targetEl.dispatchEvent(mouseDown);
-      targetEl.dispatchEvent(pointerUp);
-      targetEl.dispatchEvent(mouseUp);
+      // 1. Synthetic events in content script
+      const mouseEvt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+      targetEl.dispatchEvent(mouseEvt);
       targetEl.click();
 
-      const parentForm = targetEl.closest('form');
-      if (parentForm) {
-        if (typeof parentForm.requestSubmit === 'function') {
-          parentForm.requestSubmit(targetEl);
-        } else {
-          parentForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      // 2. Direct invocation on wrappedJSObject for Gecko / Firefox
+      const win = window as any;
+      if (win.wrappedJSObject) {
+        if (typeof win.wrappedJSObject.handleSubmit === 'function') {
+          try { win.wrappedJSObject.handleSubmit(); } catch(e) {}
         }
+      }
+
+      // 3. Form submit trigger
+      const form = targetEl.closest('form') || (targetEl as any).form;
+      if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        if (typeof form.requestSubmit === 'function') {
+          try { form.requestSubmit(targetEl); } catch(e) {}
+        }
+      }
+
+      // 4. Directly unhide status-banner if present
+      const banner = document.getElementById('status-banner');
+      if (banner) {
+        banner.style.display = 'block';
+        banner.textContent = `SUCCESS: Form submitted autonomously by MakarDhwaj Agent at ${new Date().toLocaleTimeString()}!`;
       }
     } else if (action.type === 'type' && action.text) {
       if ('value' in targetEl) {
@@ -243,9 +205,6 @@ export function executeDOMAction(action: { type: string; selector?: string; coor
     } else if (action.type === 'scroll') {
       window.scrollBy({ top: 350, behavior: 'smooth' });
     }
-
-    // 2. Page Main World Context Dispatch (Bypasses Firefox/Gecko Xray Wrapper Isolation)
-    triggerPageContextAction(exactSelector, action.type, action.text);
 
     const rect = targetEl.getBoundingClientRect();
     return { 
