@@ -20,6 +20,8 @@ export interface ExtractDOMResult {
     height: number;
     devicePixelRatio: number;
   };
+  url: string;
+  title: string;
   elements: DOMNodeMeta[];
   piiBoundingBoxes: Array<{ x: number; y: number; width: number; height: number; type: string }>;
 }
@@ -49,11 +51,8 @@ export function extractDOMState(): ExtractDOMResult {
   const elements: DOMNodeMeta[] = [];
   const piiBoxes: Array<{ x: number; y: number; width: number; height: number; type: string }> = [];
 
-  const candidateSelector = 'button, input, select, textarea, a, [role="button"], [role="link"], [onclick]';
+  const candidateSelector = 'button, input, select, textarea, a, [role="button"], [role="link"], [onclick], form';
   const nodes = document.querySelectorAll(candidateSelector);
-
-  const scrollX = window.scrollX || window.pageXOffset;
-  const scrollY = window.scrollY || window.pageYOffset;
 
   let nodeCounter = 0;
 
@@ -70,7 +69,9 @@ export function extractDOMState(): ExtractDOMResult {
       el.id.toLowerCase().includes('card') || 
       el.id.toLowerCase().includes('cvv') ||
       el.id.toLowerCase().includes('ssn') ||
-      el.getAttribute('name')?.toLowerCase().includes('pass') || false;
+      el.id.toLowerCase().includes('pass') ||
+      el.getAttribute('name')?.toLowerCase().includes('pass') ||
+      el.getAttribute('name')?.toLowerCase().includes('card') || false;
 
     // Detect potential PII fields in DOM tree for immediate masking
     if (isSensitiveInput || inputType === 'email' || inputType === 'tel') {
@@ -115,9 +116,23 @@ export function extractDOMState(): ExtractDOMResult {
       height: window.innerHeight,
       devicePixelRatio: window.devicePixelRatio || 1
     },
+    url: window.location.href,
+    title: document.title,
     elements,
     piiBoundingBoxes: piiBoxes
   };
+}
+
+// Visual indicator overlay when agent interacts with element
+function highlightElement(el: HTMLElement) {
+  const origOutline = el.style.outline;
+  const origTransition = el.style.transition;
+  el.style.transition = 'outline 0.15s ease-in-out';
+  el.style.outline = '3px solid #dc2626';
+  setTimeout(() => {
+    el.style.outline = origOutline;
+    el.style.transition = origTransition;
+  }, 1000);
 }
 
 // Action executor in active page DOM
@@ -125,7 +140,9 @@ export function executeDOMAction(action: { type: string; selector?: string; coor
   let targetEl: HTMLElement | null = null;
 
   if (action.selector) {
-    targetEl = document.querySelector(action.selector) as HTMLElement;
+    try {
+      targetEl = document.querySelector(action.selector) as HTMLElement;
+    } catch (e) {}
   }
 
   if (!targetEl && action.coordinates) {
@@ -133,34 +150,63 @@ export function executeDOMAction(action: { type: string; selector?: string; coor
     targetEl = document.elementFromPoint(x, y) as HTMLElement;
   }
 
+  // Fallback heuristic: if selector was button or submit
+  if (!targetEl && action.selector?.includes('submit')) {
+    targetEl = document.querySelector('button[type="submit"], input[type="submit"], #submit-btn, button') as HTMLElement;
+  }
+
   if (!targetEl) {
     console.warn('[MakarDhwaj] Could not find target element for action:', action);
-    return { success: false, error: 'Element not found' };
+    return { success: false, error: 'Element not found', selector: action.selector, coordinates: action.coordinates };
   }
 
   try {
     targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     targetEl.focus();
+    highlightElement(targetEl);
 
     if (action.type === 'click') {
+      // 1. Dispatch full pointer and mouse event cascade
+      const pointerDown = new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: window });
+      const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window });
+      const pointerUp = new PointerEvent('pointerup', { bubbles: true, cancelable: true, view: window });
+      const mouseUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window });
+      
+      targetEl.dispatchEvent(pointerDown);
+      targetEl.dispatchEvent(mouseDown);
+      targetEl.dispatchEvent(pointerUp);
+      targetEl.dispatchEvent(mouseUp);
       targetEl.click();
-      const mouseEvent = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
-      targetEl.dispatchEvent(mouseEvent);
+
+      // 2. If it's a form submit button or inside a form, ensure form submits
+      const parentForm = targetEl.closest('form');
+      if (parentForm) {
+        if (typeof parentForm.requestSubmit === 'function') {
+          parentForm.requestSubmit(targetEl);
+        } else {
+          parentForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }
+      }
     } else if (action.type === 'type' && action.text) {
       if ('value' in targetEl) {
         (targetEl as HTMLInputElement).value = action.text;
       }
-      const inputEvent = new Event('input', { bubbles: true });
-      targetEl.dispatchEvent(inputEvent);
-      const changeEvent = new Event('change', { bubbles: true });
-      targetEl.dispatchEvent(changeEvent);
+      targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+      targetEl.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (action.type === 'scroll') {
-      window.scrollBy({ top: 300, behavior: 'smooth' });
+      window.scrollBy({ top: 350, behavior: 'smooth' });
     }
 
-    return { success: true, selector: getUniqueSelector(targetEl) };
+    const rect = targetEl.getBoundingClientRect();
+    return { 
+      success: true, 
+      selector: getUniqueSelector(targetEl),
+      tagName: targetEl.tagName,
+      text: targetEl.textContent?.trim().substring(0, 30),
+      bounds: { x: Math.round(rect.left), y: Math.round(rect.top), width: Math.round(rect.width), height: Math.round(rect.height) }
+    };
   } catch (err: any) {
-    return { success: false, error: err.toString() };
+    return { success: false, error: err.toString(), selector: action.selector };
   }
 }
 
