@@ -71,6 +71,20 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func handleTestPlayground(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	content, err := os.ReadFile("../test_playground.html")
+	if err != nil {
+		content, err = os.ReadFile("test_playground.html")
+	}
+	if err != nil {
+		http.Error(w, "test_playground.html not found on server", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(content)
+}
+
 func handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	enableCORS(w, r)
@@ -196,11 +210,20 @@ func main() {
 
 	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/api/v1/analyze", handleAnalyze)
+	http.HandleFunc("/test", handleTestPlayground)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			handleTestPlayground(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	})
 
 	log.Printf("==================================================")
 	log.Printf(" MakarDhwaj Vision Perception Backend Server")
 	log.Printf(" Listening on http://localhost:%s", port)
 	log.Printf(" Healthcheck: http://localhost:%s/health", port)
+	log.Printf(" Test Page: http://localhost:%s/test", port)
 	log.Printf(" Ingestion Endpoint: http://localhost:%s/api/v1/analyze", port)
 	log.Printf("==================================================")
 
