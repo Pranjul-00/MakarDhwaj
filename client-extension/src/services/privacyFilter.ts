@@ -1,3 +1,6 @@
+import init, { redact_canvas_pixels } from '../wasm/wasm_redactor.js';
+import wasmUrl from '../wasm/wasm_redactor_bg.wasm?url';
+
 export interface BoundingBox {
   x: number;
   y: number;
@@ -13,25 +16,27 @@ export interface RedactionResult {
   wasmAccelerated: boolean;
 }
 
-// Regex heuristics for instant PII text detection
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-const CREDIT_CARD_REGEX = /\b(?:\d[ -]*?){13,16}\b/;
-const PHONE_REGEX = /\b\+?[1-9]\d{1,14}\b/;
-
 let wasmModule: any = null;
 
 export async function initWasmRedactor() {
   if (wasmModule) return wasmModule;
   try {
-    // Dynamic import for compiled WASM redactor module
-    const wasm = await import('../wasm/wasm_redactor.js');
-    await wasm.default();
-    wasmModule = wasm;
-    console.log('[MakarDhwaj] WASM Redactor engine initialized.');
+    const resolvedUrl = typeof chrome !== 'undefined' && chrome.runtime?.getURL
+      ? chrome.runtime.getURL(wasmUrl.replace(/^\//, ''))
+      : wasmUrl;
+    await init({ module_or_path: resolvedUrl });
+    wasmModule = { redact_canvas_pixels };
+    console.log('[MakarDhwaj] Rust WASM Redactor successfully initialized.');
     return wasmModule;
   } catch (err) {
-    console.warn('[MakarDhwaj] WASM module not compiled yet, falling back to JS Canvas engine:', err);
-    return null;
+    try {
+      await init();
+      wasmModule = { redact_canvas_pixels };
+      return wasmModule;
+    } catch (e2) {
+      console.warn('[MakarDhwaj] WASM init fallback to Canvas 2D:', err);
+      return null;
+    }
   }
 }
 
@@ -68,7 +73,7 @@ export async function sanitizeScreenshot(
           try {
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const boxesJson = JSON.stringify(allBoxes);
-            const count = wasm.redact_canvas_pixels(
+            wasm.redact_canvas_pixels(
               imgData.data,
               canvas.width,
               canvas.height,
@@ -78,7 +83,7 @@ export async function sanitizeScreenshot(
             ctx.putImageData(imgData, 0, 0);
             usedWasm = true;
           } catch (wasmErr) {
-            console.warn('[WASM Redact Error, falling back to 2D Context]:', wasmErr);
+            console.warn('[MakarDhwaj WASM Error, falling back to 2D]:', wasmErr);
           }
         }
 
@@ -91,12 +96,12 @@ export async function sanitizeScreenshot(
                 for (let px = box.x; px < box.x + box.width; px += blockSize) {
                   const w = Math.min(blockSize, box.x + box.width - px);
                   const h = Math.min(blockSize, box.y + box.height - py);
-                  ctx.fillStyle = '#334155';
+                  ctx.fillStyle = '#27272a';
                   ctx.fillRect(px, py, w, h);
                 }
               }
             } else if (mode === 'blur') {
-              ctx.fillStyle = '#64748b';
+              ctx.fillStyle = '#52525b';
               ctx.fillRect(box.x, box.y, box.width, box.height);
             } else {
               // Solid Blackout
@@ -119,7 +124,7 @@ export async function sanitizeScreenshot(
         reject(err);
       }
     };
-    img.onerror = (e) => reject(new Error('Failed to load image for redaction'));
+    img.onerror = () => reject(new Error('Failed to load image for redaction'));
     img.src = imageBase64;
   });
 }
