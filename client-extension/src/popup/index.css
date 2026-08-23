@@ -12,8 +12,8 @@ html, body {
   padding: 0;
   width: 380px;
   min-height: 520px;
-  background-color: #090d16;
-  color: #f1f5f9;
+  background-color: #000000;
+  color: #f3f4f6;
   overflow-x: hidden;
   box-sizing: border-box;
 }
@@ -22,21 +22,21 @@ html, body {
   box-sizing: inherit;
 }
 
-/* Custom sleek scrollbars */
+/* Minimalist scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #000000;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+  background: #27272a;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #dc2626;
 }
