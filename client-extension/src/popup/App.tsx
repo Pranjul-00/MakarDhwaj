@@ -105,31 +105,31 @@ export function App() {
   };
 
   return (
-    <div className="w-[380px] bg-black text-zinc-100 min-h-[530px] p-4 flex flex-col gap-3 font-sans text-xs border border-zinc-800 select-none relative">
+    <div className="w-[380px] bg-[#09090b] text-[#f4f4f5] min-h-[530px] p-4 flex flex-col gap-3 font-sans text-xs border border-[#27272a] select-none relative">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div className="flex items-center justify-between pb-3 border-b border-[#27272a]">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-red-950/80 border border-red-600 flex items-center justify-center text-red-500 rounded">
+          <div className="w-7 h-7 bg-[#450a0a] border border-[#dc2626] flex items-center justify-center text-[#ef4444] rounded">
             <Shield className="w-4 h-4" />
           </div>
           <div>
             <div className="font-bold text-sm text-white tracking-wide flex items-center gap-1.5">
               <span>MakarDhwaj</span>
-              <span className="text-[9px] px-1 py-0.2 bg-red-950 text-red-400 rounded border border-red-800 font-mono">AGENT</span>
+              <span className="text-[9px] px-1 py-0.2 bg-[#450a0a] text-[#f87171] rounded border border-[#991b1b] font-mono">AGENT</span>
             </div>
-            <p className="text-[10px] text-zinc-400 leading-none">On-Device Privacy Perception</p>
+            <p className="text-[10px] text-[#a1a1aa] leading-none">Privacy Perception Agent</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-1.5 bg-zinc-950 px-2 py-1 border border-zinc-800 rounded text-[10px] text-zinc-300">
-          <Cpu className={`w-3 h-3 ${state.stats.wasmUsed ? 'text-red-500' : 'text-zinc-400'}`} />
+        <div className="flex items-center gap-1.5 bg-[#18181b] px-2 py-1 border border-[#27272a] rounded text-[10px] text-[#d4d4d8]">
+          <Cpu className={`w-3 h-3 ${state.stats.wasmUsed ? 'text-[#ef4444]' : 'text-[#a1a1aa]'}`} />
           <span className="font-mono">{state.stats.wasmUsed ? 'Rust WASM' : 'Canvas2D'}</span>
         </div>
       </div>
 
       {/* Goal Input & Trigger */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+        <label className="text-[10px] uppercase font-bold tracking-wider text-[#a1a1aa]">
           Agent Goal
         </label>
         <div className="flex gap-2">
@@ -138,12 +138,12 @@ export function App() {
             value={inputGoal}
             onChange={(e) => setInputGoal(e.target.value)}
             placeholder="e.g. Click Submit Privacy Form"
-            className="flex-1 bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-100 text-xs focus:outline-none focus:border-red-600 transition-colors placeholder:text-zinc-600"
+            className="flex-1 bg-[#18181b] border border-[#3f3f46] rounded px-3 py-1.5 text-[#f4f4f5] text-xs focus:outline-none focus:border-[#dc2626] transition-colors placeholder:text-[#71717a]"
           />
           <button
             onClick={handleStart}
             disabled={state.isProcessing}
-            className="bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 text-white font-semibold px-3.5 py-1.5 rounded flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="bg-[#dc2626] hover:bg-[#b91c1c] active:bg-[#991b1b] disabled:opacity-50 text-white font-bold px-3.5 py-1.5 rounded flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             {state.isProcessing ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -157,18 +157,18 @@ export function App() {
 
       {/* Redaction Mode Switcher */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+        <label className="text-[10px] uppercase font-bold tracking-wider text-[#a1a1aa]">
           Redaction Mode
         </label>
-        <div className="grid grid-cols-3 gap-1.5 bg-zinc-950 p-1 border border-zinc-800 rounded">
+        <div className="grid grid-cols-3 gap-1.5 bg-[#18181b] p-1 border border-[#27272a] rounded">
           {(['blackout', 'pixelate', 'blur'] as const).map((m) => (
             <button
               key={m}
               onClick={() => handleModeChange(m)}
-              className={`py-1 capitalize font-medium rounded text-[11px] transition-colors cursor-pointer text-center ${
+              className={`py-1.5 capitalize font-medium rounded text-[11px] transition-colors cursor-pointer text-center ${
                 state.redactionMode === m
-                  ? 'bg-red-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                  ? 'bg-[#dc2626] text-white font-bold'
+                  : 'text-[#a1a1aa] hover:text-white hover:bg-[#27272a]'
               }`}
             >
               {m}
@@ -178,47 +178,47 @@ export function App() {
       </div>
 
       {/* Metrics & Performance KPI Card */}
-      <div className="grid grid-cols-3 gap-2 bg-zinc-950 p-2 border border-zinc-800 rounded">
+      <div className="grid grid-cols-3 gap-2 bg-[#18181b] p-2 border border-[#27272a] rounded">
         <div className="flex flex-col items-center justify-center p-1">
-          <span className="text-[10px] text-zinc-400">PII Redacted</span>
-          <span className="font-mono font-bold text-red-500 text-sm mt-0.5">{state.stats.redactedCount}</span>
+          <span className="text-[10px] text-[#a1a1aa]">PII Redacted</span>
+          <span className="font-mono font-bold text-[#ef4444] text-sm mt-0.5">{state.stats.redactedCount}</span>
         </div>
-        <div className="flex flex-col items-center justify-center p-1 border-x border-zinc-800">
-          <span className="text-[10px] text-zinc-400">Filter Time</span>
+        <div className="flex flex-col items-center justify-center p-1 border-x border-[#27272a]">
+          <span className="text-[10px] text-[#a1a1aa]">Filter Time</span>
           <span className="font-mono font-bold text-white text-sm mt-0.5">{state.stats.redactTimeMs}ms</span>
         </div>
         <div className="flex flex-col items-center justify-center p-1">
-          <span className="text-[10px] text-zinc-400">Server Time</span>
-          <span className="font-mono font-bold text-zinc-300 text-sm mt-0.5">{state.stats.serverTimeMs}ms</span>
+          <span className="text-[10px] text-[#a1a1aa]">Server Time</span>
+          <span className="font-mono font-bold text-[#d4d4d8] text-sm mt-0.5">{state.stats.serverTimeMs}ms</span>
         </div>
       </div>
 
       {/* Sanitized Frame Debug Preview (Expandable & High-Res) */}
       {state.lastSanitizedImage && (
-        <div className="flex flex-col gap-1 bg-zinc-950 p-2 border border-zinc-800 rounded">
-          <div className="flex items-center justify-between text-[10px] text-zinc-400 mb-1">
-            <span className="flex items-center gap-1 font-medium text-zinc-300">
-              <Eye className="w-3 h-3 text-red-500" /> Sanitized Viewport Frame
+        <div className="flex flex-col gap-1 bg-[#18181b] p-2 border border-[#27272a] rounded">
+          <div className="flex items-center justify-between text-[10px] text-[#a1a1aa] mb-1">
+            <span className="flex items-center gap-1 font-medium text-[#e4e4e7]">
+              <Eye className="w-3 h-3 text-[#ef4444]" /> Sanitized Viewport Frame
             </span>
             <button
               onClick={() => setIsImageModalOpen(true)}
-              className="text-red-400 hover:text-red-300 font-mono text-[9px] flex items-center gap-1 border border-red-900/50 bg-red-950/40 px-1.5 py-0.5 rounded cursor-pointer"
+              className="text-[#ef4444] hover:text-[#f87171] font-mono text-[9px] flex items-center gap-1 border border-[#7f1d1d] bg-[#450a0a] px-1.5 py-0.5 rounded cursor-pointer"
             >
               <ZoomIn className="w-2.5 h-2.5" /> Enlarge
             </button>
           </div>
           <div 
             onClick={() => setIsImageModalOpen(true)}
-            className="group relative border border-zinc-800 rounded overflow-hidden max-h-[110px] bg-black flex items-center justify-center cursor-pointer hover:border-red-600 transition-colors"
+            className="group relative border border-[#27272a] rounded overflow-hidden max-h-[110px] bg-black flex items-center justify-center cursor-pointer hover:border-[#dc2626] transition-colors"
           >
             <img 
               src={state.lastSanitizedImage} 
               alt="Sanitized preview" 
-              className="w-full object-contain group-hover:scale-[1.02] transition-transform duration-150" 
+              className="w-full object-contain" 
             />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[11px] font-medium transition-opacity gap-1">
-              <ZoomIn className="w-3.5 h-3.5 text-red-500" />
-              <span>Click to Expand High-Res</span>
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[11px] font-medium transition-opacity gap-1">
+              <ZoomIn className="w-3.5 h-3.5 text-[#ef4444]" />
+              <span>Click to Expand</span>
             </div>
           </div>
         </div>
@@ -226,25 +226,25 @@ export function App() {
 
       {/* Live Log Console with Copy & Expandable Details */}
       <div className="flex-1 flex flex-col gap-1.5 pt-1">
-        <div className="flex items-center justify-between text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+        <div className="flex items-center justify-between text-[10px] text-[#a1a1aa] font-bold uppercase tracking-wider">
           <span className="flex items-center gap-1.5">
-            <Terminal className="w-3 h-3 text-red-500" />
+            <Terminal className="w-3 h-3 text-[#ef4444]" />
             <span>Execution Ledger</span>
           </span>
-          <div className="flex items-center gap-1.5 lowercase">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handleCopyLogs}
               disabled={state.logs.length === 0}
-              className="flex items-center gap-1 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-zinc-300 hover:text-white px-2 py-0.5 rounded border border-zinc-800 cursor-pointer font-sans transition-colors"
+              className="flex items-center gap-1 bg-[#18181b] hover:bg-[#27272a] disabled:opacity-40 text-[#d4d4d8] hover:text-white px-2 py-0.5 rounded border border-[#27272a] cursor-pointer font-sans transition-colors"
               title="Copy all logs to clipboard"
             >
-              {copied ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5 text-red-400" />}
+              {copied ? <Check className="w-2.5 h-2.5 text-[#10b981]" /> : <Copy className="w-2.5 h-2.5 text-[#ef4444]" />}
               <span className="text-[9px] capitalize">{copied ? 'Copied!' : 'Copy Logs'}</span>
             </button>
             <button
               onClick={handleClearLogs}
               disabled={state.logs.length === 0}
-              className="p-1 text-zinc-500 hover:text-red-400 transition-colors cursor-pointer"
+              className="p-1 text-[#71717a] hover:text-[#ef4444] transition-colors cursor-pointer"
               title="Clear logs"
             >
               <Trash2 className="w-3 h-3" />
@@ -252,9 +252,9 @@ export function App() {
           </div>
         </div>
         
-        <div className="bg-black border border-zinc-800 rounded p-2 h-[120px] overflow-y-auto font-mono text-[10px] flex flex-col gap-1">
+        <div className="bg-black border border-[#27272a] rounded p-2 h-[120px] overflow-y-auto font-mono text-[10px] flex flex-col gap-1">
           {state.logs.length === 0 ? (
-            <div className="text-zinc-600 italic py-8 text-center">
+            <div className="text-[#52525b] italic py-8 text-center">
               System ready. Enter goal and press Run.
             </div>
           ) : (
@@ -262,30 +262,30 @@ export function App() {
               const isExpanded = expandedLogIdx === idx;
               const hasDetails = log.details && Object.keys(log.details).length > 0;
               return (
-                <div key={idx} className="flex flex-col border-b border-zinc-900/60 pb-1">
+                <div key={idx} className="flex flex-col border-b border-[#18181b] pb-1">
                   <div 
                     onClick={() => hasDetails && setExpandedLogIdx(isExpanded ? null : idx)}
-                    className={`flex items-start gap-1.5 leading-tight ${hasDetails ? 'cursor-pointer hover:bg-zinc-950/80 p-0.5 rounded' : ''}`}
+                    className={`flex items-start gap-1.5 leading-tight ${hasDetails ? 'cursor-pointer hover:bg-[#18181b] p-0.5 rounded' : ''}`}
                   >
-                    <span className="text-zinc-600 select-none text-[9px] shrink-0">[{log.timestamp}]</span>
+                    <span className="text-[#52525b] select-none text-[9px] shrink-0">[{log.timestamp}]</span>
                     <span className={`font-semibold text-[8.5px] px-1 rounded uppercase shrink-0 ${
-                      log.stage === 'error' ? 'bg-red-950 text-red-400 border border-red-800' :
-                      log.stage === 'success' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                      log.stage === 'redact' ? 'bg-zinc-900 text-red-400 border border-zinc-700' :
-                      log.stage === 'server' ? 'bg-zinc-900 text-zinc-300 border border-zinc-700' : 
-                      'bg-red-900/40 text-red-300 border border-red-700/50'
+                      log.stage === 'error' ? 'bg-[#450a0a] text-[#f87171] border border-[#7f1d1d]' :
+                      log.stage === 'success' ? 'bg-[#064e3b] text-[#34d399] border border-[#065f46]' :
+                      log.stage === 'redact' ? 'bg-[#18181b] text-[#f87171] border border-[#3f3f46]' :
+                      log.stage === 'server' ? 'bg-[#18181b] text-[#d4d4d8] border border-[#3f3f46]' : 
+                      'bg-[#450a0a] text-[#fca5a5] border border-[#991b1b]'
                     }`}>
                       {log.stage}
                     </span>
-                    <span className="flex-1 text-zinc-300 break-all">{log.message}</span>
+                    <span className="flex-1 text-[#d4d4d8] break-all">{log.message}</span>
                     {hasDetails && (
-                      <span className="text-zinc-600 shrink-0">
+                      <span className="text-[#71717a] shrink-0">
                         {isExpanded ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
                       </span>
                     )}
                   </div>
                   {isExpanded && hasDetails && (
-                    <pre className="mt-1 p-1.5 bg-zinc-950 border border-zinc-800 rounded text-[8.5px] text-zinc-400 overflow-x-auto whitespace-pre-wrap">
+                    <pre className="mt-1 p-1.5 bg-[#18181b] border border-[#27272a] rounded text-[8.5px] text-[#a1a1aa] overflow-x-auto whitespace-pre-wrap">
                       {JSON.stringify(log.details, null, 2)}
                     </pre>
                   )}
@@ -298,21 +298,21 @@ export function App() {
 
       {/* High-Resolution Expanded Image Lightbox Modal */}
       {isImageModalOpen && state.lastSanitizedImage && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm p-3 flex flex-col justify-between border border-red-600 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+        <div className="fixed inset-0 z-50 bg-black/95 p-3 flex flex-col justify-between border border-[#dc2626]">
+          <div className="flex items-center justify-between pb-2 border-b border-[#27272a]">
             <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-red-500" />
-              <span className="font-bold text-xs text-white">Sanitized Screenshot (High-Res)</span>
+              <Eye className="w-4 h-4 text-[#ef4444]" />
+              <span className="font-bold text-xs text-white">Sanitized Frame (High-Res)</span>
             </div>
             <button
               onClick={() => setIsImageModalOpen(false)}
-              className="p-1 rounded bg-zinc-900 hover:bg-red-600 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+              className="p-1 rounded bg-[#18181b] hover:bg-[#dc2626] text-[#d4d4d8] hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-auto my-2 border border-zinc-800 rounded bg-black flex items-center justify-center p-1">
+          <div className="flex-1 overflow-auto my-2 border border-[#27272a] rounded bg-black flex items-center justify-center p-1">
             <img 
               src={state.lastSanitizedImage} 
               alt="High resolution sanitized frame" 
@@ -320,12 +320,12 @@ export function App() {
             />
           </div>
 
-          <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-1 border-t border-zinc-800">
-            <span>Redacted Regions: <strong className="text-red-500 font-mono">{state.stats.redactedCount}</strong></span>
+          <div className="flex items-center justify-between text-[10px] text-[#a1a1aa] pt-1 border-t border-[#27272a]">
+            <span>Redacted Regions: <strong className="text-[#ef4444] font-mono">{state.stats.redactedCount}</strong></span>
             <span>Filter Time: <strong className="text-white font-mono">{state.stats.redactTimeMs}ms</strong></span>
             <button
               onClick={() => setIsImageModalOpen(false)}
-              className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 px-3 py-1 rounded text-[10px] border border-zinc-700 cursor-pointer"
+              className="bg-[#18181b] hover:bg-[#27272a] text-[#d4d4d8] px-3 py-1 rounded text-[10px] border border-[#3f3f46] cursor-pointer"
             >
               Close
             </button>
