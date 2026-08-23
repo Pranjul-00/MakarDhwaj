@@ -11,3 +11,8 @@
 - **Symptom:** Display Scaling (e.g. 2x Retina / 4K displays) results in coordinate misalignment between CSS layout pixels and physical canvas pixels.
 - **Root Cause:** Bounding client rects return CSS pixel dimensions, while canvas screen capture returns raw device pixel resolution.
 - **Fix:** Multiply DOM bounding box dimensions by `window.devicePixelRatio` before passing to WASM redaction buffer.
+
+### Issue 003: Zen / Firefox Gecko Synthetic Event Propagation
+- **Symptom:** Extension dispatches `CLICK` action to button, visual highlight border flashes, but web page `handleSubmit` banner is not triggered in Zen Browser.
+- **Status:** Open for investigation.
+- **Next Steps:** Evaluate `chrome.debugger` API, `browser.tabs.executeScript({ code: "document.querySelector('...').click()" })`, or dedicated pointer event injection.
