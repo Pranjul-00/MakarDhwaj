@@ -16,3 +16,9 @@
 - **Symptom:** Extension dispatches `CLICK` action to button, visual highlight border flashes, but web page `handleSubmit` banner is not triggered in Zen Browser.
 - **Status:** Open for investigation.
 - **Next Steps:** Evaluate `chrome.debugger` API, `browser.tabs.executeScript({ code: "document.querySelector('...').click()" })`, or dedicated pointer event injection.
+
+### Issue 004: High-Severity Transitive `sharp` Advisory
+- **Symptom:** `npm audit` reports two high-severity findings: `sharp <0.35.0` and its direct parent `@huggingface/transformers`.
+- **Root Cause:** The locked `@huggingface/transformers` dependency resolves `sharp@0.34.5`, affected by inherited libvips advisories grouped under `GHSA-f88m-g3jw-g9cj`.
+- **Status:** Open; npm reports no automatic fix. No audit gate is enabled while the locked dependency has no compatible fixed resolution.
+- **Next Steps:** Track an upstream `@huggingface/transformers` resolution using `sharp >=0.35.0`; verify browser bundle exposure before upgrading on a dedicated dependency branch.

@@ -2,6 +2,7 @@
 
 ## Directory Structure & Module Descriptions
 - `AGENTS.md`: Mandatory AI-agent entry point linking repository work to the `.context` contribution contract
+- `.github/workflows/ci.yml`: Pull-request and `main` CI gates for client, Rust WASM, and Go server
 - `.context/`: Living state memory matrix tracked in Git
   - `00_project_manifest.md`: Vision, project goals, KPIs, non-negotiable domain rules
   - `01_architecture_contracts.md`: System diagrams, sequence models, REST payload schemas

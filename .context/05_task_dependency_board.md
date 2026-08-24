@@ -5,6 +5,8 @@
 - [x] **Task 1.2:** Implement `.gitignore` configured to track `.context/` memory matrix while ignoring build targets and secrets.
 - [x] **Task 1.3:** Compile Rust WASM module (`wasm-redactor`) and integrate with Vite build script.
 - [x] **Task 1.4:** Document initial component contracts and API schemas in `.context/01_architecture_contracts.md`.
+- [x] **Task 1.5:** Establish tracked AI coding and contribution rules documenting the protected-branch workflow.
+- [ ] **Task 1.6:** Add GitHub Actions CI gates for client build, Rust WASM checks, and Go server checks. Implementation prepared on `chore/add-ci`; remote runner validation pending.
 
 ## Phase 2: Client Screen Capture & State Extraction
 - [x] **Task 2.1:** Configure Manifest V3 permissions (`activeTab`, `scripting`, `storage`).
