@@ -23,7 +23,9 @@ pub fn redact_canvas_pixels(
 
     let total_pixels = (img_width * img_height) as usize;
     if pixels.len() < total_pixels * 4 {
-        return Err(JsValue::from_str("Buffer size smaller than dimensions RGBA"));
+        return Err(JsValue::from_str(
+            "Buffer size smaller than dimensions RGBA",
+        ));
     }
 
     let mut redacted_count = 0;
@@ -40,7 +42,6 @@ pub fn redact_canvas_pixels(
                         let bx_end = (px + block_size).min(x_end);
                         let by_end = (py + block_size).min(y_end);
 
-                        // Calculate average color in block
                         let mut r_sum: u64 = 0;
                         let mut g_sum: u64 = 0;
                         let mut b_sum: u64 = 0;
@@ -56,10 +57,14 @@ pub fn redact_canvas_pixels(
                             }
                         }
 
-                        if count > 0 {
-                            let avg_r = (r_sum / count) as u8;
-                            let avg_g = (g_sum / count) as u8;
-                            let avg_b = (b_sum / count) as u8;
+                        if let (Some(r), Some(g), Some(b)) = (
+                            r_sum.checked_div(count),
+                            g_sum.checked_div(count),
+                            b_sum.checked_div(count),
+                        ) {
+                            let avg_r = r as u8;
+                            let avg_g = g as u8;
+                            let avg_b = b as u8;
 
                             for y in py..by_end {
                                 for x in px..bx_end {
@@ -75,12 +80,10 @@ pub fn redact_canvas_pixels(
                 }
             }
             "blur" => {
-                // True multi-pass separable box blur in Rust memory
                 let radius = 10i32;
                 let mut temp_buf = vec![0u8; ((y_end - bbox.y) * (x_end - bbox.x) * 4) as usize];
                 let bw = x_end - bbox.x;
 
-                // Copy bounding region to temp
                 for y in bbox.y..y_end {
                     for x in bbox.x..x_end {
                         let src_idx = ((y * img_width + x) * 4) as usize;
@@ -92,7 +95,6 @@ pub fn redact_canvas_pixels(
                     }
                 }
 
-                // Blur pass
                 for y in bbox.y..y_end {
                     for x in bbox.x..x_end {
                         let mut r_sum = 0u64;
@@ -107,7 +109,8 @@ pub fn redact_canvas_pixels(
 
                         for ny in (ry_start..=ry_end).step_by(2) {
                             for nx in (rx_start..=rx_end).step_by(2) {
-                                let tidx = (((ny as u32 - bbox.y) * bw + (nx as u32 - bbox.x)) * 4) as usize;
+                                let tidx = (((ny as u32 - bbox.y) * bw + (nx as u32 - bbox.x)) * 4)
+                                    as usize;
                                 r_sum += temp_buf[tidx] as u64;
                                 g_sum += temp_buf[tidx + 1] as u64;
                                 b_sum += temp_buf[tidx + 2] as u64;
@@ -115,18 +118,21 @@ pub fn redact_canvas_pixels(
                             }
                         }
 
-                        if count > 0 {
+                        if let (Some(r), Some(g), Some(b)) = (
+                            r_sum.checked_div(count),
+                            g_sum.checked_div(count),
+                            b_sum.checked_div(count),
+                        ) {
                             let idx = ((y * img_width + x) * 4) as usize;
-                            pixels[idx] = (r_sum / count) as u8;
-                            pixels[idx + 1] = (g_sum / count) as u8;
-                            pixels[idx + 2] = (b_sum / count) as u8;
+                            pixels[idx] = r as u8;
+                            pixels[idx + 1] = g as u8;
+                            pixels[idx + 2] = b as u8;
                             pixels[idx + 3] = 255;
                         }
                     }
                 }
             }
             _ => {
-                // Solid blackout masking
                 for y in bbox.y..y_end {
                     for x in bbox.x..x_end {
                         let idx = ((y * img_width + x) * 4) as usize;

@@ -43,13 +43,13 @@ type AnalysisRequest struct {
 }
 
 type ActionResponse struct {
-	Action      string `json:"action"`                // "click", "type", "scroll", "none"
-	Selector    string `json:"selector,omitempty"`     // CSS selector
-	Coordinates [2]int `json:"coordinates,omitempty"`  // [x, y]
-	Text        string `json:"text,omitempty"`        // Text for "type" action
-	Confidence  float64`json:"confidence"`             // 0.0 - 1.0
-	Reasoning   string `json:"reasoning"`              // Explanation from VLM
-	LatencyMs   int64  `json:"latency_ms"`
+	Action      string  `json:"action"`                // "click", "type", "scroll", "none"
+	Selector    string  `json:"selector,omitempty"`    // CSS selector
+	Coordinates [2]int  `json:"coordinates,omitempty"` // [x, y]
+	Text        string  `json:"text,omitempty"`        // Text for "type" action
+	Confidence  float64 `json:"confidence"`            // 0.0 - 1.0
+	Reasoning   string  `json:"reasoning"`             // Explanation from VLM
+	LatencyMs   int64   `json:"latency_ms"`
 }
 
 func enableCORS(w http.ResponseWriter, r *http.Request) {
