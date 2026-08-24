@@ -1,6 +1,7 @@
 # Repository Map
 
 ## Directory Structure & Module Descriptions
+- `AGENTS.md`: Mandatory AI-agent entry point linking repository work to the `.context` contribution contract
 - `.context/`: Living state memory matrix tracked in Git
   - `00_project_manifest.md`: Vision, project goals, KPIs, non-negotiable domain rules
   - `01_architecture_contracts.md`: System diagrams, sequence models, REST payload schemas
@@ -10,6 +11,7 @@
   - `05_task_dependency_board.md`: Epic tasks, completion status, dependency graph
   - `06_error_and_edge_case_log.md`: Debugging ledger and edge-case regression guardrails
   - `07_session_handoff.md`: Cross-session memory snapshot and next immediate steps
+  - `08_coding_and_contribution_rules.md`: Mandatory coding, privacy, Git, AI-agent, review, and verification rules
 - `client-extension/`: Chrome Extension client codebase (React 19 + Vite 6 + WASM + WebGPU/Transformers)
   - `manifest.json`: Manifest V3 extension configuration
   - `vite.config.ts`: Multi-entry build configuration

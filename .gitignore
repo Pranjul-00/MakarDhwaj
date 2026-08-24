@@ -19,10 +19,10 @@ target/
 *.pem
 *.key
 
-# Local Agent Directives
-GEMINI.md
-CLAUDE.md
-AGENTS.md
+# Local Agent Directive Overrides
+GEMINI.local.md
+CLAUDE.local.md
+AGENTS.local.md
 
 # IDE / OS
 .DS_Store
