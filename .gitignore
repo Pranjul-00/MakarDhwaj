@@ -20,7 +20,9 @@ target/
 *.key
 
 # Local Agent Directive Overrides
+GEMINI.md
 GEMINI.local.md
+CLAUDE.md
 CLAUDE.local.md
 AGENTS.local.md
 
