@@ -23,7 +23,9 @@ pub fn redact_canvas_pixels(
 
     let total_pixels = (img_width * img_height) as usize;
     if pixels.len() < total_pixels * 4 {
-        return Err(JsValue::from_str("Buffer size smaller than dimensions RGBA"));
+        return Err(JsValue::from_str(
+            "Buffer size smaller than dimensions RGBA",
+        ));
     }
 
     let mut redacted_count = 0;
@@ -56,10 +58,14 @@ pub fn redact_canvas_pixels(
                             }
                         }
 
-                        if count > 0 {
-                            let avg_r = (r_sum / count) as u8;
-                            let avg_g = (g_sum / count) as u8;
-                            let avg_b = (b_sum / count) as u8;
+                        if let (Some(avg_r), Some(avg_g), Some(avg_b)) = (
+                            r_sum.checked_div(count),
+                            g_sum.checked_div(count),
+                            b_sum.checked_div(count),
+                        ) {
+                            let avg_r = avg_r as u8;
+                            let avg_g = avg_g as u8;
+                            let avg_b = avg_b as u8;
 
                             for y in py..by_end {
                                 for x in px..bx_end {
@@ -107,7 +113,8 @@ pub fn redact_canvas_pixels(
 
                         for ny in (ry_start..=ry_end).step_by(2) {
                             for nx in (rx_start..=rx_end).step_by(2) {
-                                let tidx = (((ny as u32 - bbox.y) * bw + (nx as u32 - bbox.x)) * 4) as usize;
+                                let tidx = (((ny as u32 - bbox.y) * bw + (nx as u32 - bbox.x)) * 4)
+                                    as usize;
                                 r_sum += temp_buf[tidx] as u64;
                                 g_sum += temp_buf[tidx + 1] as u64;
                                 b_sum += temp_buf[tidx + 2] as u64;
@@ -115,11 +122,15 @@ pub fn redact_canvas_pixels(
                             }
                         }
 
-                        if count > 0 {
+                        if let (Some(avg_r), Some(avg_g), Some(avg_b)) = (
+                            r_sum.checked_div(count),
+                            g_sum.checked_div(count),
+                            b_sum.checked_div(count),
+                        ) {
                             let idx = ((y * img_width + x) * 4) as usize;
-                            pixels[idx] = (r_sum / count) as u8;
-                            pixels[idx + 1] = (g_sum / count) as u8;
-                            pixels[idx + 2] = (b_sum / count) as u8;
+                            pixels[idx] = avg_r as u8;
+                            pixels[idx + 1] = avg_g as u8;
+                            pixels[idx + 2] = avg_b as u8;
                             pixels[idx + 3] = 255;
                         }
                     }

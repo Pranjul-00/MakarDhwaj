@@ -22,3 +22,9 @@
 - **Root Cause:** The locked `@huggingface/transformers` dependency resolves `sharp@0.34.5`, affected by inherited libvips advisories grouped under `GHSA-f88m-g3jw-g9cj`.
 - **Status:** Open; npm reports no automatic fix. No audit gate is enabled while the locked dependency has no compatible fixed resolution.
 - **Next Steps:** Track an upstream `@huggingface/transformers` resolution using `sharp >=0.35.0`; verify browser bundle exposure before upgrading on a dedicated dependency branch.
+
+### Issue 005: Initial CI Formatting and Clippy Failures
+- **Symptom:** First GitHub Actions run failed at `cargo fmt --check` and `gofmt`; later steps were skipped.
+- **Root Cause:** Existing Rust and Go sources were not formatted by their pinned toolchains. After formatting, Rust 1.97 Clippy also rejected two manually guarded divisions under `manual_checked_ops`.
+- **Fix:** Applied Rust 1.97 `cargo fmt`, Go 1.22.5 `gofmt`, and replaced guarded color-channel divisions with `checked_div` while preserving output behavior.
+- **Status:** Resolved locally. All Rust, WASM-target, Go, and complete client build gates pass; remote rerun pending.
