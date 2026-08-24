@@ -1,14 +1,10 @@
 # Active Session Handoff
 
 ## Active Session Snapshot
-- **Timestamp / Session Index**: 2026-08-24T00:25:00Z
-- **Tasks Completed in this Turn**:
-  - Implemented true spatial pixelation sampling and optical Gaussian blur filtering in JS and Rust WASM.
-  - Redesigned Extension Popup with minimalist, flat Red & Black theme, high-res Lightbox Modal, and Copy Logs ledger.
-  - Configured Go backend to serve test playground natively at `http://localhost:8080/test`.
-  - Pushed all commits to both `diddymilton` and `main` branches on GitHub.
-  - Stopped and cleared all background server tasks and ports.
-  - Maintained granular, individual atomic git commits on `diddymilton`.
-- **Current System State**: Clean repository state, all background tasks stopped, port 8080 free.
-- **Active Blockers / Edge Cases**: Investigating Zen / Firefox Gecko synthetic click propagation on form buttons (logged in Issue 003).
-- **Immediate Next Action**: Resume tomorrow with Gecko CDP / debugger / pointer event injection for Zen Browser.
+- **Date / Branch:** 2026-08-24 / `chore/add-ci`
+- **Completed:** Governance pull request merged. Added draft GitHub Actions gates for clean client/WASM build and Go verification. Pinned official setup actions to immutable SHAs. Added explicit npm install-script policy.
+- **Local Verification:** `npm ci` passes; `esbuild` binary runs; workflow YAML and project JSON parse; `git diff --check` passes.
+- **Remote Verification Pending:** Rust 1.97, wasm-pack 0.15.0, Go 1.22.5, full WASM/client build, and workflow semantics require GitHub-hosted runner execution because Rust and Go toolchains are unavailable locally.
+- **Open Security Finding:** `npm audit` reports the transitive `sharp@0.34.5` advisory documented as Issue 004; npm offers no fix.
+- **Existing Product Blocker:** Zen / Firefox Gecko synthetic submit-click propagation remains open as Issue 003.
+- **Immediate Next Action:** Commit, push with explicit authorization, open pull request, inspect CI results, then fix any runner-specific failures before marking Task 1.6 complete.

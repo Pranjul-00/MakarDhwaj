@@ -9,6 +9,12 @@
     "preview": "vite preview",
     "build:wasm": "cd wasm-redactor && wasm-pack build --target web --out-dir ../src/wasm"
   },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "onnxruntime-node": false,
+    "protobufjs": false,
+    "sharp": false
+  },
   "dependencies": {
     "@huggingface/transformers": "^3.3.3",
     "lucide-react": "^0.475.0",

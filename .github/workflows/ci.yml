@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  client:
+    name: Client and Rust WASM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned Rust toolchain
+        run: >-
+          rustup toolchain install 1.97.0
+          --profile minimal
+          --component clippy,rustfmt
+          --target wasm32-unknown-unknown
+
+      - name: Select pinned Rust toolchain
+        run: rustup default 1.97.0
+
+      - name: Check Rust formatting
+        working-directory: client-extension/wasm-redactor
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        working-directory: client-extension/wasm-redactor
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run Rust tests
+        working-directory: client-extension/wasm-redactor
+        run: cargo test --all-targets
+
+      - name: Check WebAssembly target
+        working-directory: client-extension/wasm-redactor
+        run: cargo check --release --target wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked --version 0.15.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '26.7.0'
+          cache: npm
+          cache-dependency-path: client-extension/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: client-extension
+        run: npm ci
+
+      - name: Build WebAssembly module
+        working-directory: client-extension
+        run: npm run build:wasm
+
+      - name: Build extension
+        working-directory: client-extension
+        run: npm run build
+
+  server:
+    name: Go server checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: server-backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.22.5'
+          cache: true
+          cache-dependency-path: server-backend/go.mod
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          unformatted_files="$(gofmt -l .)"
+          if [[ -n "$unformatted_files" ]]; then
+            echo "These Go files require gofmt:"
+            echo "$unformatted_files"
+            exit 1
+          fi
+
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build server
+        run: go build ./...
