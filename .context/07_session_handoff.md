@@ -1,14 +1,9 @@
 # Active Session Handoff
 
 ## Active Session Snapshot
-- **Date / Branch:** 2026-08-24 / `chore/add-ci`
-- **Completed:** Governance pull request merged. Added draft GitHub Actions gates for clean client/WASM build and Go verification. Pinned official setup actions to immutable SHAs. Added explicit npm install-script policy.
-- **Local Verification:** 
-  - **Tasks Completed in this Turn**:
-  - Fetched and merged latest changes from `origin/main` (added `.context/08_coding_and_contribution_rules.md`, `.github/workflows/ci.yml`, and `AGENTS.md`).
-  - Ran full verification gates: `cargo fmt`, `cargo clippy`, `gofmt`, `go vet`, and `npm run build`.
-  - Fixed Rust Clippy `checked_div` lints and formatted Go backend according to CI rules.
-  - Synchronized `diddymilton` and `main` branches.
-- **Current System State**: Fully up to date with remote, all CI checks passing locally.
-- **Active Blockers / Edge Cases**: Investigating Zen Browser synthetic click propagation on form submit buttons (Issue 003).
-- **Immediate Next Action**: Push updated branches to remote and resume testing.
+- **Date / Branch:** 2026-08-25 / `fix/action-contract-zen`
+- **Completed:** Synchronized local `main` with `origin/main`. Diagnosed the Zen submit failure as an action-schema mismatch: the server returned `action`, but the content executor checked `type` and falsely reported success.
+- **Current Work:** Updated the content executor to runtime-validate and allowlist the documented `action` payload, execute one native click, reject invalid commands, and remove duplicate/test-specific submission hooks.
+- **Verification:** `npm run build` passes from `client-extension`; manual Zen validation pending.
+- **Active Blockers / Edge Cases:** The action-contract fix must be rebuilt, reloaded as a temporary Zen extension, and verified against the synthetic `/test` page before Task 4.5 can be marked complete.
+- **Immediate Next Action:** Reload the rebuilt extension in Zen and confirm that the page's genuine click handler displays the success banner.
