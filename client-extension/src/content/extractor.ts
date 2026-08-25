@@ -135,24 +135,90 @@ function highlightElement(el: HTMLElement) {
   }, 1000);
 }
 
+type SupportedDOMAction = 'click' | 'type' | 'scroll' | 'none';
+
+interface DOMAction {
+  action: SupportedDOMAction;
+  selector?: string;
+  coordinates?: [number, number];
+  text?: string;
+}
+
+function isSupportedDOMAction(value: unknown): value is SupportedDOMAction {
+  return value === 'click' || value === 'type' || value === 'scroll' || value === 'none';
+}
+
+function parseDOMAction(value: unknown): DOMAction | null {
+  if (typeof value !== 'object' || value === null) return null;
+
+  const actionValue = Reflect.get(value, 'action');
+  if (!isSupportedDOMAction(actionValue)) return null;
+
+  const selectorValue = Reflect.get(value, 'selector');
+  if (selectorValue !== undefined && typeof selectorValue !== 'string') return null;
+
+  const textValue = Reflect.get(value, 'text');
+  if (textValue !== undefined && typeof textValue !== 'string') return null;
+
+  const coordinatesValue = Reflect.get(value, 'coordinates');
+  let coordinates: [number, number] | undefined;
+  if (coordinatesValue !== undefined) {
+    if (
+      !Array.isArray(coordinatesValue) ||
+      coordinatesValue.length !== 2 ||
+      typeof coordinatesValue[0] !== 'number' ||
+      !Number.isFinite(coordinatesValue[0]) ||
+      typeof coordinatesValue[1] !== 'number' ||
+      !Number.isFinite(coordinatesValue[1])
+    ) {
+      return null;
+    }
+    coordinates = [coordinatesValue[0], coordinatesValue[1]];
+  }
+
+  return {
+    action: actionValue,
+    selector: selectorValue,
+    coordinates,
+    text: textValue
+  };
+}
+
 // Action executor in active page DOM
-export function executeDOMAction(action: { type: string; selector?: string; coordinates?: [number, number]; text?: string }) {
+export function executeDOMAction(payload: unknown) {
+  const action = parseDOMAction(payload);
+  if (!action) {
+    return { success: false, error: 'Invalid or unsupported action payload' };
+  }
+
+  if (action.action === 'none') {
+    return { success: true, action: 'none' };
+  }
+
+  if (action.action === 'scroll') {
+    window.scrollBy({ top: 350, behavior: 'smooth' });
+    return { success: true, action: 'scroll' };
+  }
+
   let targetEl: HTMLElement | null = null;
 
   if (action.selector) {
     try {
-      targetEl = document.querySelector(action.selector) as HTMLElement;
-    } catch (e) {}
+      targetEl = document.querySelector<HTMLElement>(action.selector);
+    } catch {
+      return { success: false, error: 'Invalid target selector', selector: action.selector };
+    }
   }
 
   if (!targetEl && action.coordinates) {
     const [x, y] = action.coordinates;
-    targetEl = document.elementFromPoint(x, y) as HTMLElement;
+    const coordinateTarget = document.elementFromPoint(x, y);
+    if (coordinateTarget instanceof HTMLElement) targetEl = coordinateTarget;
   }
 
   // Fallback heuristic: if selector was button or submit
   if (!targetEl && action.selector?.includes('submit')) {
-    targetEl = document.querySelector('button[type="submit"], input[type="submit"], #submit-btn, button') as HTMLElement;
+    targetEl = document.querySelector<HTMLElement>('button[type="submit"], input[type="submit"], #submit-btn, button');
   }
 
   if (!targetEl) {
@@ -167,43 +233,28 @@ export function executeDOMAction(action: { type: string; selector?: string; coor
     targetEl.focus();
     highlightElement(targetEl);
 
-    if (action.type === 'click') {
-      // 1. Synthetic events in content script
-      const mouseEvt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
-      targetEl.dispatchEvent(mouseEvt);
+    if (action.action === 'click') {
+      if (
+        (targetEl instanceof HTMLButtonElement || targetEl instanceof HTMLInputElement) &&
+        targetEl.disabled
+      ) {
+        return { success: false, error: 'Target element is disabled', selector: exactSelector };
+      }
+
+      // HTMLElement.click() dispatches one click and preserves the element's native
+      // default behavior, including form submission in Firefox/Zen and Chromium.
       targetEl.click();
-
-      // 2. Direct invocation on wrappedJSObject for Gecko / Firefox
-      const win = window as any;
-      if (win.wrappedJSObject) {
-        if (typeof win.wrappedJSObject.handleSubmit === 'function') {
-          try { win.wrappedJSObject.handleSubmit(); } catch(e) {}
-        }
+    } else if (action.action === 'type') {
+      if (!(targetEl instanceof HTMLInputElement || targetEl instanceof HTMLTextAreaElement)) {
+        return { success: false, error: 'Type action requires an input or textarea', selector: exactSelector };
+      }
+      if (action.text === undefined) {
+        return { success: false, error: 'Type action requires text', selector: exactSelector };
       }
 
-      // 3. Form submit trigger
-      const form = targetEl.closest('form') || (targetEl as any).form;
-      if (form) {
-        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-        if (typeof form.requestSubmit === 'function') {
-          try { form.requestSubmit(targetEl); } catch(e) {}
-        }
-      }
-
-      // 4. Directly unhide status-banner if present
-      const banner = document.getElementById('status-banner');
-      if (banner) {
-        banner.style.display = 'block';
-        banner.textContent = `SUCCESS: Form submitted autonomously by MakarDhwaj Agent at ${new Date().toLocaleTimeString()}!`;
-      }
-    } else if (action.type === 'type' && action.text) {
-      if ('value' in targetEl) {
-        (targetEl as HTMLInputElement).value = action.text;
-      }
+      targetEl.value = action.text;
       targetEl.dispatchEvent(new Event('input', { bubbles: true }));
       targetEl.dispatchEvent(new Event('change', { bubbles: true }));
-    } else if (action.type === 'scroll') {
-      window.scrollBy({ top: 350, behavior: 'smooth' });
     }
 
     const rect = targetEl.getBoundingClientRect();

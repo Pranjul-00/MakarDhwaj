@@ -14,8 +14,9 @@
 
 ### Issue 003: Zen / Firefox Gecko Synthetic Event Propagation
 - **Symptom:** Extension dispatches `CLICK` action to button, visual highlight border flashes, but web page `handleSubmit` banner is not triggered in Zen Browser.
-- **Status:** Open for investigation.
-- **Next Steps:** Evaluate `chrome.debugger` API, `browser.tabs.executeScript({ code: "document.querySelector('...').click()" })`, or dedicated pointer event injection.
+- **Root Cause:** The backend response and documented API use the `action` field, while the content executor checked a nonexistent `type` field. It then returned success even though no action branch ran.
+- **Fix:** Validate and allowlist the response payload using the documented `action` field, invoke one native `HTMLElement.click()`, reject unsupported actions, and remove test-page-specific success hooks and duplicate submit events.
+- **Status:** Fix implemented on `fix/action-contract-zen`; manual Zen validation pending.
 
 ### Issue 004: High-Severity Transitive `sharp` Advisory
 - **Symptom:** `npm audit` reports two high-severity findings: `sharp <0.35.0` and its direct parent `@huggingface/transformers`.
